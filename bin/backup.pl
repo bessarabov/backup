@@ -30,6 +30,7 @@ $config->define(
 "backup_server_dir=s",
 "filename=s",
 "tmp_dir=s",
+"keep_local_copy=s",
 "days_keep=s",
 "keep_first_day_backup=s",
 "dir=s@",
@@ -47,6 +48,7 @@ our $c_backup_server_name = $config->backup_server_name;
 our $c_backup_server_dir = $config->backup_server_dir;
 our $c_filename = $config->filename;
 our $c_tmp_dir = $config->tmp_dir;
+our $c_keep_local_copy = $config->keep_local_copy;
 our $c_days_keep = $config->days_keep;
 our $c_keep_first_day_backup = $config->keep_first_day_backup;
 our $c_dir = $config->dir;
@@ -285,7 +287,7 @@ sub delete_local {
     write_log("\n== Deleting local tmp files ==\n");
     exec_command("rm $c_tmp_dir/backup/mysql.dump") if ($c_mysql_host and $c_mysql_port and $c_mysql_user and $c_mysql_password);
     exec_command("rm $c_tmp_dir/$filename");
-    exec_command("rm $c_tmp_dir/$filename.nc");
+    exec_command("rm $c_tmp_dir/$filename.nc") unless ($c_keep_local_copy);
     exec_command("rm -rf $c_tmp_dir/backup/dir");
     exec_command("rm -rf $c_tmp_dir/backup/file");
     exec_command("rmdir $c_tmp_dir/backup/");
