@@ -191,8 +191,8 @@ sub gen_filename {
 
 =cut
 sub backup_mysql {
+    write_log("\n== Dumping mysql ==\n");
     if ($c_mysql_host and $c_mysql_port and $c_mysql_user and $c_mysql_password) {
-        write_log("\n== Dumping mysql ==\n");
         exec_command("/usr/bin/mysqldump -u $c_mysql_user --password=$c_mysql_password --host=$c_mysql_host --port=$c_mysql_port -A > $c_tmp_dir/backup/mysql.dump");
     }
     else {
@@ -283,7 +283,7 @@ sub backup_send {
 =cut
 sub delete_local {
     write_log("\n== Deleting local tmp files ==\n");
-    exec_command("rm $c_tmp_dir/backup/mysql.dump");
+    exec_command("rm $c_tmp_dir/backup/mysql.dump") if ($c_mysql_host and $c_mysql_port and $c_mysql_user and $c_mysql_password);
     exec_command("rm $c_tmp_dir/$filename");
     exec_command("rm $c_tmp_dir/$filename.nc");
     exec_command("rm -rf $c_tmp_dir/backup/dir");
