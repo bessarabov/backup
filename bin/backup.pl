@@ -25,6 +25,7 @@ my $config_file = "/etc/backup.conf";
 my $config = AppConfig->new();
 $config->define(
 "debug=s",
+"log=s",
 "backup_server_name=s",
 "backup_server_dir=s",
 "filename=s",
@@ -41,6 +42,7 @@ $config->define(
 die("Failed to read config file") if !$config->file($config_file);
 
 our $c_debug = $config->debug;
+our $c_log = $config->log;
 our $c_backup_server_name = $config->backup_server_name;
 our $c_backup_server_dir = $config->backup_server_dir;
 our $c_filename = $config->filename;
@@ -59,10 +61,11 @@ $c_backup_server_dir =~ s{(.*?)/*$}{$1};
 
 # Получаю параметры из конфигурационного файла - end
 
-print "= Starting backup =\n" if $c_debug;
+# Получаю текущую дату и время
+my ($g_d_now, $g_t_now) = dt_now();
 
-# Получаю текущую дату
-my $g_d_now = d_now();
+write_log("= Starting backup $g_d_now $g_t_now =\n");
+
 
 # Формирую имя файла
 my $filename = gen_filename();
@@ -80,10 +83,27 @@ backup_send();
 delete_local();
 delete_remote();
 
-print "\nEND\n" if $c_debug;
+write_log("\nEND\n\n");
 
 =head1 GENERAL FUNCTIONS
 =cut
+
+=head2 write_log
+
+ * Получает: 1) строка для записил в лог
+ * Возвращает: -
+
+Процедера получает строку и в зависимости от параметров в конфигурационном файле выводит строку на экрн, и/или записывает в лог файл
+
+=cut
+sub write_log {
+    my ($message) = @_;
+    print $message if $c_debug;
+
+    open (LOGFILE, ">>$c_log") or die $!;
+    print LOGFILE $message;
+    close LOGFILE;
+};
 
 =head2 exec_command
 
@@ -95,9 +115,9 @@ print "\nEND\n" if $c_debug;
 =cut
 sub exec_command {
     my ($command) = @_;
-    print " \$ " . $command . "\n" if $c_debug;
+    write_log(" \$ " . $command . "\n");
     my $result = `$command`;
-    print "$result" if $c_debug;
+    write_log($result);
 };
 
 =head2 create_dir
@@ -109,17 +129,17 @@ sub exec_command {
 
 =cut
 sub create_dir {
-    print "\n== Creating tmp dir ==\n" if $c_debug;
+    write_log("\n== Creating tmp dir ==\n");
     exec_command("mkdir $c_tmp_dir/backup/");
 }
 
-=head2 d_now
+=head2 dt_now
 
  * Получает: -
- * Возвращает: 1) текущую дату в формате YYYY-MM-DD 
+ * Возвращает: 1) текущую дату в формате YYYY-MM-DD 2) текущее время в формате HH:MM:SS
 
 =cut
-sub d_now {
+sub dt_now {
     (my $Second, my $Minute, my $Hour, my $DayOfMonth, my $Month, my $Year, my $Weekday, my $DayOfYear, my $IsDST) = localtime(time);
     my $RealYear = $Year + 1900;
     $Month++;
@@ -129,7 +149,7 @@ sub d_now {
     if ($Minute < 10) {$Minute = "0" . $Minute}
     if ($Second < 10) {$Second = "0" . $Second}
 
-    return "$RealYear-$Month-$DayOfMonth";
+    return ("$RealYear-$Month-$DayOfMonth", "$Hour:$Minute:$Second");
 }
 
 =head2 d_keep
@@ -172,11 +192,11 @@ sub gen_filename {
 =cut
 sub backup_mysql {
     if ($c_mysql_host and $c_mysql_port and $c_mysql_user and $c_mysql_password) {
-        print "\n== Dumping mysql ==\n" if $c_debug;
+        write_log("\n== Dumping mysql ==\n");
         exec_command("/usr/bin/mysqldump -u $c_mysql_user --password=$c_mysql_password --host=$c_mysql_host --port=$c_mysql_port -A > $c_tmp_dir/backup/mysql.dump");
     }
     else {
-        print "Not enougth parameters for mysql dump\n" if $c_debug;
+        write_log("Not enougth parameters for mysql dump\n");
     }
 }
 
@@ -189,7 +209,7 @@ sub backup_mysql {
 
 =cut
 sub backup_dir {
-    print "\n== Copying dir ==\n" if $c_debug;
+    write_log("\n== Copying dir ==\n");
     exec_command("mkdir $c_tmp_dir/backup/dir");
     foreach (@$c_dir) {
         exec_command("cp $_ $c_tmp_dir/backup/dir/ -R --parents");
@@ -205,7 +225,7 @@ sub backup_dir {
 
 =cut
 sub backup_file {
-    print "\n== Copying file ==\n" if $c_debug;
+    write_log("\n== Copying file ==\n");
     exec_command("mkdir $c_tmp_dir/backup/file");
 
     foreach (@$c_file) {
@@ -223,7 +243,7 @@ sub backup_file {
 
 =cut
 sub backup_archive {
-    print "\n== Archiving ==\n" if $c_debug;
+    write_log("\n== Archiving ==\n");
     exec_command("cd $c_tmp_dir/backup/; tar zcf $c_tmp_dir/$filename * > /dev/null");
 };
 
@@ -236,7 +256,7 @@ sub backup_archive {
 
 =cut
 sub backup_crypt {
-    print "\n== Crypting file ==\n" if $c_debug;
+    write_log("\n== Crypting file ==\n");
     exec_command("mcrypt -q $c_tmp_dir/$filename");
 };
 
@@ -249,7 +269,7 @@ sub backup_crypt {
 
 =cut
 sub backup_send {
-    print "\n== Sending file ==\n" if $c_debug;
+    write_log("\n== Sending file ==\n");
     exec_command("scp $c_tmp_dir/$filename.nc $c_backup_server_name:$c_backup_server_dir");
 };
 
@@ -262,7 +282,7 @@ sub backup_send {
 
 =cut
 sub delete_local {
-    print "\n== Deleting local tmp files ==\n" if $c_debug;
+    write_log("\n== Deleting local tmp files ==\n");
     exec_command("rm $c_tmp_dir/backup/mysql.dump");
     exec_command("rm $c_tmp_dir/$filename");
     exec_command("rm $c_tmp_dir/$filename.nc");
@@ -280,7 +300,7 @@ sub delete_local {
 
 =cut
 sub delete_remote {
-    print "\n== Deleting remote old files ==\n" if $c_debug;
+    write_log("\n== Deleting remote old files ==\n");
 
     # Получаю список файлов на сервере
     my $list = `ssh $c_backup_server_name 'ls $c_backup_server_dir/$c_filename*'`;
