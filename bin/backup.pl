@@ -267,12 +267,20 @@ sub backup_crypt {
  * Получает: -
  * Возвращает: -
 
-Отправляет зашифрованный файл на сервер
+Отправляет зашифрованный файл на сервер в том случае, если указано имя сервера в конфиге
 
 =cut
 sub backup_send {
     write_log("\n== Sending file ==\n");
-    exec_command("scp $c_tmp_dir/$filename.nc $c_backup_server_name:$c_backup_server_dir");
+    if ($c_backup_server_name) {
+        exec_command("scp $c_tmp_dir/$filename.nc $c_backup_server_name:$c_backup_server_dir");
+    }
+    else {
+        write_log("No server info in config file. Not sending file to remote machine.\n");
+        unless ($c_keep_local_copy) {
+            write_log("Warning! Not sending backup to the server and not saving local copy. Useless running.\n");
+        }
+    }
 };
 
 =head2 delete_local
@@ -303,32 +311,36 @@ sub delete_local {
 =cut
 sub delete_remote {
     write_log("\n== Deleting remote old files ==\n");
+    if ($c_backup_server_name) {
+        # Получаю список файлов на сервере
+        my $list = `ssh $c_backup_server_name 'ls $c_backup_server_dir/$c_filename*'`;
 
-    # Получаю список файлов на сервере
-    my $list = `ssh $c_backup_server_name 'ls $c_backup_server_dir/$c_filename*'`;
+        my @files = split ("\n", $list);
 
-    my @files = split ("\n", $list);
+        # Дата, начиная с которой буду оставлять файлы
+        my $d_keep = d_keep();
 
-    # Дата, начиная с которой буду оставлять файлы
-    my $d_keep = d_keep();
+        # Тут буду собирать список файлов, которые нужно удалить (разделенные пробелами)
+        my $files_to_delete;
 
-    # Тут буду собирать список файлов, которые нужно удалить (разделенные пробелами)
-    my $files_to_delete;
+        # Прохожусь по всем файлам
+        foreach (@files) {
 
-    # Прохожусь по всем файлам
-    foreach (@files) {
-
-        # Сверяю даты. Если дата бекапа ранее даты с которой оставляю файлы - то файл нужно удалять
-        if ($_ lt "$c_backup_server_dir/$c_filename$d_keep.tar.nc") {
-            # В том случае, если в конофиге указано не удалять бекап от первого числа - не удаляю его
-            if (not($c_keep_first_day_backup and ($_ =~ m{$c_backup_server_dir/$c_filename\d{4}-\d{2}-01.tar.nc}))) {
-                $files_to_delete .= " $_";
+            # Сверяю даты. Если дата бекапа ранее даты с которой оставляю файлы - то файл нужно удалять
+            if ($_ lt "$c_backup_server_dir/$c_filename$d_keep.tar.nc") {
+                # В том случае, если в конофиге указано не удалять бекап от первого числа - не удаляю его
+                if (not($c_keep_first_day_backup and ($_ =~ m{$c_backup_server_dir/$c_filename\d{4}-\d{2}-01.tar.nc}))) {
+                    $files_to_delete .= " $_";
+                }
             }
         }
-    }
 
-    if ($files_to_delete) {
-        exec_command("ssh $c_backup_server_name 'rm $files_to_delete'");
+        if ($files_to_delete) {
+            exec_command("ssh $c_backup_server_name 'rm $files_to_delete'");
+        }
+    }
+    else {
+        write_log("Can't delete remote copies, no server info.");
     }
 }
 
