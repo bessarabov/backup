@@ -38,7 +38,8 @@ $config->define(
 "mysql_host=s", 
 "mysql_port=s", 
 "mysql_user=s", 
-"mysql_password=s" 
+"mysql_password=s",
+"pg_dumpall=s" 
 );
 die("Failed to read config file") if !$config->file($config_file);
 
@@ -57,6 +58,7 @@ our $c_mysql_host = $config->mysql_host;
 our $c_mysql_port = $config->mysql_port;
 our $c_mysql_user = $config->mysql_user;
 our $c_mysql_password = $config->mysql_password;
+our $c_pg_dumpall = $config->pg_dumpall;
 
 # Удаляю конечные слешы
 $c_backup_server_dir =~ s{(.*?)/*$}{$1};
@@ -75,6 +77,7 @@ my $filename = gen_filename();
 create_dir();
 
 backup_mysql();
+backup_pg();
 backup_dir();
 backup_file();
 
@@ -202,6 +205,24 @@ sub backup_mysql {
     }
 }
 
+=head2 backup_pg 
+
+ * Получает: -
+ * Возвращает: -
+
+С помощью скрипта pg_dumpall создает файл pg.dump с дампом
+
+=cut
+sub backup_pg {
+    write_log("\n== Dumping postgresql ==\n");
+    if ($c_pg_dumpall) {
+        exec_command("pg_dumpall > $c_tmp_dir/backup/pg.dump");
+    }
+    else {
+        write_log("Postgresql backup if switched off in config file\n");
+    }
+}
+
 =head2 backup_dir
 
  * Получает: -
@@ -294,6 +315,7 @@ sub backup_send {
 sub delete_local {
     write_log("\n== Deleting local tmp files ==\n");
     exec_command("rm $c_tmp_dir/backup/mysql.dump") if ($c_mysql_host and $c_mysql_port and $c_mysql_user and $c_mysql_password);
+    exec_command("rm $c_tmp_dir/backup/pg.dump") if ($c_pg_dumpall);
     exec_command("rm $c_tmp_dir/$filename");
     exec_command("rm $c_tmp_dir/$filename.nc") unless ($c_keep_local_copy);
     exec_command("rm -rf $c_tmp_dir/backup/dir");
