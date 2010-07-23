@@ -68,8 +68,13 @@ $c_backup_server_dir =~ s{(.*?)/*$}{$1};
 # Получаю текущую дату и время
 my ($g_d_now, $g_t_now) = dt_now();
 
-write_log("= Starting backup $g_d_now $g_t_now =\n");
+# Флаг по которому смотрю были ли ошибки (если ошбики были, то нуно отпрвлять на поту)
+my $error;
 
+# Текст сообщения, которое будет отправлятся на почту
+my $email;
+
+write_log("= Starting backup $g_d_now $g_t_now =\n");
 
 # Формирую имя файла
 my $filename = gen_filename();
@@ -90,6 +95,8 @@ delete_remote();
 
 write_log("\nEND\n\n");
 
+print $email if ($error or $c_debug);
+
 =head1 GENERAL FUNCTIONS
 =cut
 
@@ -103,7 +110,7 @@ write_log("\nEND\n\n");
 =cut
 sub write_log {
     my ($message) = @_;
-    print $message if $c_debug;
+    $email .= $message;
 
     open (LOGFILE, ">>$c_log") or die $!;
     print LOGFILE $message;
@@ -122,6 +129,7 @@ sub exec_command {
     my ($command) = @_;
     write_log(" \$ " . $command . "\n");
     my $result = `$command`;
+    $error = 1 if $?;
     write_log($result);
 };
 
@@ -135,7 +143,7 @@ sub exec_command {
 =cut
 sub create_dir {
     write_log("\n== Creating tmp dir ==\n");
-    exec_command("mkdir $c_tmp_dir/backup/");
+    exec_command("mkdir $c_tmp_dir/backup/ 2>&1");
 }
 
 =head2 dt_now
@@ -233,9 +241,9 @@ sub backup_pg {
 =cut
 sub backup_dir {
     write_log("\n== Copying dir ==\n");
-    exec_command("mkdir $c_tmp_dir/backup/dir");
+    exec_command("mkdir $c_tmp_dir/backup/dir 2>&1");
     foreach (@$c_dir) {
-        exec_command("cp $_ $c_tmp_dir/backup/dir/ -R --parents");
+        exec_command("cp $_ $c_tmp_dir/backup/dir/ -R --parents 2>&1");
     }
 }
 
@@ -249,10 +257,10 @@ sub backup_dir {
 =cut
 sub backup_file {
     write_log("\n== Copying file ==\n");
-    exec_command("mkdir $c_tmp_dir/backup/file");
+    exec_command("mkdir $c_tmp_dir/backup/file 2>&1");
 
     foreach (@$c_file) {
-        exec_command("cp $_ $c_tmp_dir/backup/file/ --parents");
+        exec_command("cp $_ $c_tmp_dir/backup/file/ --parents 2>&1");
     }
 
 }
