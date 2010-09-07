@@ -39,6 +39,7 @@ $config->define(
 "mysql_port=s", 
 "mysql_user=s", 
 "mysql_password=s",
+"pg_user=s" 
 "pg_dumpall=s" 
 );
 die("Failed to read config file") if !$config->file($config_file);
@@ -58,6 +59,7 @@ our $c_mysql_host = $config->mysql_host;
 our $c_mysql_port = $config->mysql_port;
 our $c_mysql_user = $config->mysql_user;
 our $c_mysql_password = $config->mysql_password;
+our $c_pg_user = $config->pg_user;
 our $c_pg_dumpall = $config->pg_dumpall;
 
 # Удаляю конечные слешы
@@ -224,7 +226,7 @@ sub backup_mysql {
 sub backup_pg {
     write_log("\n== Dumping postgresql ==\n");
     if ($c_pg_dumpall) {
-        exec_command("pg_dumpall > $c_tmp_dir/backup/pg.dump");
+        exec_command("pg_dumpall -U $c_pg_user > $c_tmp_dir/backup/pg.dump");
     }
     else {
         write_log("Postgresql backup if switched off in config file\n");
