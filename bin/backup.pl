@@ -14,6 +14,9 @@ backup.pl
 
 Система бекапа
 
+Скрипту можно передать один опциоанальный параметр - путь к файлу конфига.
+Если параметр не указан, то используется /etc/backup.conf
+
 =head1 AUTHOR
 
 Ivan Bessarabov, ivan@bessarabov.ru
@@ -21,7 +24,7 @@ Ivan Bessarabov, ivan@bessarabov.ru
 =cut
 
 # Получаю параметры из конфигурационного файла - start
-my $config_file = "/etc/backup.conf";
+my $config_file = $ARGV[0] || "/etc/backup.conf";
 my $config = AppConfig->new();
 $config->define(
 "debug=s",
@@ -277,7 +280,7 @@ sub backup_file {
 =cut
 sub backup_archive {
     write_log("\n== Archiving ==\n");
-    exec_command("cd $c_tmp_dir/backup/; tar zcf $c_tmp_dir/$filename * > /dev/null");
+    exec_command("cd $c_tmp_dir/backup/; tar zcf $c_tmp_dir/$filename * 2>&1");
 };
 
 =head2 backup_crypt
