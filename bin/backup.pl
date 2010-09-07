@@ -39,7 +39,7 @@ $config->define(
 "mysql_port=s", 
 "mysql_user=s", 
 "mysql_password=s",
-"pg_user=s" 
+"pg_user=s",
 "pg_dumpall=s" 
 );
 die("Failed to read config file") if !$config->file($config_file);
